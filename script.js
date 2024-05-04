@@ -1,185 +1,151 @@
-const dbManager = new IndexedDBManager("ListaAlbums", 3);
-let array_imagenes = [];
+const dbManager = new IndexedDBManager("ListaVideos", 1);
+let array_videos = [];
 
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelector(".loader").style.display = "block";
-  cargarAnterioresAlbumes();
   // array_imagenes = await dbManager.obtenerParteAlbumPaginada(pagina); Ya no necesario
-  renderImages();
+  renderVideos();
   document.querySelector(".loader").style.display = "none";
 });
 
-const cargarAnterioresAlbumes = () =>{
-  const params = new URLSearchParams(window.location.search);
-  pagina = parseInt(params.get("pagina")) || 1;
-  cantidadSeleccionada = parseInt(params.get("cantidad")) || 10;
-  imagenes.value = pagina;
-  const event = new Event('input', {
-    bubbles: true, //progacion del evento en el DOM
-    cancelable: true, //Se "puede" cancelar el evento
-  });
-  imagenes.dispatchEvent(event);
-}
 
-const selectCantidad = document.getElementById('cantidad');
-let cantidadSeleccionada = 10;
-selectCantidad.addEventListener('change', async function() {
-    cantidadSeleccionada = parseInt(selectCantidad.value);
-    array_imagenes = await dbManager.obtenerParteAlbumPaginada(pagina,cantidadSeleccionada);
-      renderImages();
-});
+const renderVideos = async () => {
+  let test = await dbManager.obtenerTodo();
+  gallery.innerHTML = test
+  .map((item) => {
+    const videoUrl = URL.createObjectURL(item.url);
+    console.log(videoUrl);
+    return `
+    <div>
+      <video id="video-${item.clave}" controls>
+        <source src="${videoUrl}" type="video/mp4">
+        Tu navegador no soporta la etiqueta de video.
+      </video>
+      <button onclick="handleDeleteClick('${item.clave}')">Borrar</button>
+    </div>
+    `;
+  })
+  .join("");
 
-const renderImages = () => {
-  gallery.innerHTML = array_imagenes
-    .map((item) => {
-      return `
-               
-                  <img loading="lazy" src="${item.url}" alt="" onclick= "handleZoomItemClick('${item.clave}','${item.url}')" />
-               `;
-    })
-    .join("");
+  // function handleDeleteClick(){
+    
+  // }
+
+  // Agrega el evento onclick a cada elemento de video
+  // test.forEach((item) => {
+  //   const videoElement = document.getElementById(`video-${item.clave}`);
+  //   videoElement.addEventListener("click", () => {
+  //     // Manejar el clic del video aquí
+  //     handleZoomItemClick(item.clave, item.url);
+  //   });
+  // });
+
 };
+
+const handleDeleteClick = (clave) => {
+
+  dbManager.deleteVideoById(clave);
+  renderVideos();
+}
 
 let pathSelected;
 let positionActual;
-const handleZoomItemClick = (id, url) => {
-  //hacer visible el form
-  pathSelected = id;
-  imagen_zoom.classList.toggle("visible");
-  imagenZoom.src = url;
-  positionActual = getPosition(pathSelected);
-  
-};
-
-// showZoomForm = () => {
-//   console.log("cerrar");
+// const handleZoomItemClick = (clave, url) => {
+//   //hacer visible el form
+//   console.log(url);
+//   pathSelected = clave;
 //   imagen_zoom.classList.toggle("visible");
+//   imagenZoom.src = url;
+   
 // };
 
-imagenZoom.addEventListener("click", () => {
-  imagen_zoom.classList.toggle("visible");
-});
 
-imageClose.addEventListener("click", () => {
-  imagen_zoom.classList.toggle("visible");
-});
-
-imageEnter.addEventListener("click", () => {
-  const url = `album.html?album=${pathSelected}&pagina=${pagina}&cantidad=${cantidadSeleccionada}`;
-  window.location.href = url;
-  imagen_zoom.classList.toggle("visible");
-});
-
-//Funcion para obtener posicion mediante el id
-
-const getPosition = (id) => {
-  let position = -1;
-  array_imagenes.forEach((e, index) => {
-    if (e.clave == id) {
-      position = index;
-    }
-  });
-
-  return position;
-};
-
-//Funcion obtener imagen por posicion
-
-document.getElementById("imageNext").addEventListener("click", () => {
-  if (positionActual < array_imagenes.length - 1) {
-    positionActual = positionActual + 1;
-  } else {
-    positionActual = 0;
-  }
-  array_imagenes.forEach((e, index) => {
-    if (index == positionActual) {
-      idSelected = e.clave;
-      imagenZoom.src = e.url;
-      positionActual = index;
-    }
-  });
-}) 
-
-document.getElementById("imageLeft").addEventListener("click", () => {
-  if (positionActual > 0) {
-    positionActual = positionActual - 1;
-  } else {
-    positionActual = array_imagenes.length - 1;
-    
-  }
-  array_imagenes.forEach((e, index) => {
-    if (index == positionActual) {
-      idSelected = e.clave;
-      imagenZoom.src = e.url;
-      positionActual = index;
-    }
-  });
-}) 
-
-//BORRAR UN ALBUM
-
-imageBorrar.addEventListener("click", () => {
-  if (confirm("¿Estás seguro de borrar la Preview?")) {
-    if (confirm("¿Se borrara todos las imagenes asociadas?")) {
-      dbManager.deleteAlbumById(pathSelected);
-      dbManager.deleteImagesByAlbumId(pathSelected);
-      array_imagenes = array_imagenes.filter((e) => e.clave != pathSelected);
-    }
-  }
-  imagen_zoom.classList.toggle("visible");
-  renderImages();
-});
 
 //GUARDAR IMAGENES AL CARGARLOS
 
 document.getElementById("icon_add").addEventListener("click",()=>{
   uploadForm.classList.toggle("visible");
+ 
+  // renderVideos();
 })
 
-let convertedImages = [];
-fileInput.addEventListener("change", async function () {
-  const files = this.files;
 
-  for (let i = 0; i < files.length; i++) {
-    if (files[i].type.startsWith("image/")) {
-      try {
-        const { clave, url } = await convertirArchivoAURLBase64ConID(files[i]);
-        convertedImages.push({ clave, url }); // Agregar la imagen convertida al array
-      } catch (error) {
-        console.error("Error al convertir el archivo:", error);
-      }
-    } else {
-      fileInput.value = null;
-      alert("Por favor, seleccione solo imágenes.");
-    }
-  }
+document.getElementById('uploadForm').addEventListener('submit', function(event) {
+  event.preventDefault();
+  dbManager.agregar(data);
+  uploadForm.classList.toggle("visible");
+  renderVideos();
 });
+
+let data;
+fileInput.addEventListener("change", async function (event) {
+  const file = event.target.files[0]; // Obtén el primer archivo seleccionado (el video)
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(event) {
+    const videoDataUrl = event.target.result; // Obtén la URL de datos del video
+    await fetch(videoDataUrl)
+      .then(response => response.blob())
+      .then(videoBlob => {
+        // Aquí tienes el Blob del video, ahora puedes guardarlo en IndexedDB
+        data = {
+          "clave" : generateSecureRandomId(),
+          "url" :  videoBlob
+        }
+        console.log(data);
+        console.log('guardado ok');
+      })
+      .catch(error => {
+        console.error('Error al cargar el video:', error);
+      });
+  };
+  reader.readAsDataURL(file); // Lee el archivo como una URL de datos
+});
+
+function generateSecureRandomId() {
+  const array = new Uint32Array(1);
+  window.crypto.getRandomValues(array);
+  return array[0].toString(16);
+}
 
 // FORMULARIO CONFIRMAR - CANCELAR SUBIR IMAGENES
-uploadForm.addEventListener("submit", async function (event) {
-  event.preventDefault();
-  try {
-    document.querySelector(".loader").style.display = "block";
-    dbManager.addAlbumsArray(convertedImages);
-    array_imagenes = await dbManager.obtenerParteAlbumPaginada(1,cantidadSeleccionada);
-    convertedImages.length = 0; // Vaciar convertedImages después de agregar las imágenes al array
-    fileInput.value = null;
-    uploadForm.classList.toggle("visible");
-    renderImages();
-    document.querySelector(".loader").style.display = "none";
-  } catch (error) {
-    console.log(error);
-  }
-});
+// uploadForm.addEventListener("submit", async function (event) {
+//   event.preventDefault();
+//   try {
+//     document.querySelector(".loader").style.display = "block";
+//     fileInput.value = null;
+//     uploadForm.classList.toggle("visible");
+//     renderVideos();
+//     document.querySelector(".loader").style.display = "none";
+//   } catch (error) {
+//     console.log(error);
+//   }
+// });
 
 //SALIR
 
 btnSalir.addEventListener("click", () => {
-  convertedImages.length = 0;
+  
   fileInput.value = null;
   uploadForm.classList.toggle("visible");
 });
 
+
+columnas.addEventListener("input", () => {
+  {
+    const numColumnas = parseInt(columnas.value);
+    gallery.style.gridTemplateColumns = `repeat(${numColumnas}, minmax(250px, 1fr))`;
+  }
+});
+
+function guardarAlbum(){
+  dbManager.exportar();
+}
+
+// imageClose.addEventListener("click", () => {
+//   imagen_zoom.classList.toggle("visible");
+// });
 
 // window.addEventListener("scroll", function () {
 //   var header = document.querySelector("header");
@@ -190,77 +156,27 @@ btnSalir.addEventListener("click", () => {
 //   }
 // });
 
-const guardarAlbum = () => {
-  dbManager.exportar();
-};
-
-const guardarPreviews = () => {
-  comprimirImagenesEnZIP(array_imagenes);
-};
 
 // IMPORTAR
 
-fileInputI.addEventListener("change", function (event) {
-  if (
-    confirm("Al importar se perderan todos los datos, procure exportar primero")
-  ) {
-    const archivo = event.target.files[0];
-    const lector = new FileReader();
-    document.querySelector(".loader").style.display = "block";
-    lector.onload = async function () {
-      const datos = JSON.parse(lector.result);
-      dbManager.deleteAlbumsAndImages();
-      dbManager.importar(datos);
-      array_imagenes = await dbManager.obtenerParteAlbumPaginada(1,cantidadSeleccionada);
-      renderImages();
-      document.querySelector(".loader").style.display = "none";
-      fileInputI.value = null;
-    };
-    lector.readAsText(archivo);
-  }
-});
+// const actualizarData = async () => {
+//   array_imagenes = await dbManager.obtenerTodo();
+// };
 
-const actualizarData = async () => {
-  array_imagenes = await dbManager.obtenerTodo();
-};
 
-// COLORES Y COLUMNAS
-columnas.addEventListener("input", () => {
-  {
-    const numColumnas = parseInt(columnas.value);
-    gallery.style.gridTemplateColumns = `repeat(${numColumnas}, minmax(250px, 1fr))`;
-  }
-});
-
-colorPicker.addEventListener("change", function () {
-  const color = this.value;
-  gallery.style.backgroundColor = color;
-});
-
-document.getElementById("boton-capturar").addEventListener("click", () => {
-  document.querySelector(".loader").style.display = "block";
-  html2canvas(document.querySelector("#gallery")).then((canvas) => {
-    const imagen = canvas.toDataURL("image/png");
-    const enlaceDescarga = document.createElement("a");
-    enlaceDescarga.href = imagen;
-    enlaceDescarga.download = "captura_de_pantalla.png";
-    enlaceDescarga.click();
-    document.querySelector(".loader").style.display = "none";
-  });
-});
 
 
 // PAGINACION
-let pagina = 1;
-imagenes.addEventListener("input", () => {
-  {
-    pagina = parseInt(imagenes.value);
-    document.querySelector(".loader").style.display = "block";
-    setTimeout(async () => {
-      array_imagenes = await dbManager.obtenerParteAlbumPaginada(pagina,cantidadSeleccionada);
-      renderImages();
-      document.querySelector(".loader").style.display = "none";
-      cargar = false;
-    }, 1000);
-  }
-});
+// let pagina = 1;
+// imagenes.addEventListener("input", () => {
+//   {
+//     pagina = parseInt(imagenes.value);
+//     document.querySelector(".loader").style.display = "block";
+//     setTimeout(async () => {
+//       array_imagenes = await dbManager.obtenerParteAlbumPaginada(pagina,cantidadSeleccionada);
+//       renderVideos();
+//       document.querySelector(".loader").style.display = "none";
+//       cargar = false;
+//     }, 1000);
+//   }
+// });
