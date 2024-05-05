@@ -24,6 +24,22 @@ class IndexedDBManager {
     };
   }
 
+  actualizar = (data) => {
+    const trasaccion = this.db.transaction(["videos"], "readwrite");
+    const coleccionObjetos = trasaccion.objectStore("videos");
+    const request = coleccionObjetos.put(data);
+
+    request.onsuccess = () => {
+      // this.consultar();
+      console.log("Actualizado con exito");
+    };
+
+    request.onerror = (error) => {
+      console.error("Error al actualizar elemento:", error);
+    };
+  };
+
+
   agregar = (video) => {
     if (!this.db) {
       console.error("Error: Base de datos no está disponible aún");
@@ -82,16 +98,42 @@ class IndexedDBManager {
   deleteVideoById = (clave) => {
     const trasaccion = this.db.transaction(["videos"], "readwrite");
     const coleccionObjetos = trasaccion.objectStore("videos");
-    const conexion = coleccionObjetos.delete(clave);
+    const request = coleccionObjetos.delete(clave);
 
-    conexion.onsuccess = () => {
+    request.onsuccess = () => {
       // this.consultar();
     };
 
-    conexion.onerror = (error) => {
+    request.onerror = (error) => {
       console.error("Error al eliminar video:", error);
     };
   };
+
+  deleteAllvideos = async () => {
+    const transaction = this.db.transaction(["videos"],"readwrite");
+    const videoStore = transaction.objectStore("videos");
+    
+    //si no se quiere usar promise.all : return new Promise((resolve, reject)
+    const eliminarVideos = new Promise((resolve,reject)=>{
+
+      transaction.oncomplete = () => {
+        resolve();
+      };
+      transaction.onerror = (event) => {
+        reject(event.target.error);
+      };
+
+      videoStore.clear();
+    })
+
+    await Promise.all([eliminarVideos])
+    .then(() => {
+      console.log("Se eliminaron los videos");
+    })
+    .catch((error) => {
+        console.error("Ocurrió un error:", error);
+    });
+  }
 
   exportar = () => {
     document.querySelector(".loader").style.display = "block";
@@ -114,11 +156,10 @@ class IndexedDBManager {
   
     Promise.all([obtenerVideos])
       .then(([arrayVideo]) => {
-        // Mapea los datos para incluir solo las claves o IDs de los blobs
-        const arrayVideosExport = arrayVideo.map(video => ({ clave: video.clave }));
         const objExport = {
-          arrayVideos: arrayVideosExport,
+          arrayVideos: arrayVideo,
         };
+        console.log(objExport);
         this.descargarArrayJson(objExport);
         document.querySelector(".loader").style.display = "none";
       })
@@ -141,8 +182,22 @@ class IndexedDBManager {
   };
 
   importar = (datos) => {
-    this.addAlbumsArray(datos.arrayAlbums); //AgregarAlbumes
-    this.agregarImagenesAlbum(datos.arrayImages); //Agregar imagenes
+  
+    this.addVideosArray(datos.arrayVideos); 
+
+  };
+
+  addVideosArray = (datos) => {
+    if (!this.db) {
+      console.error("Error: Base de datos no está disponible aún");
+      return;
+    }
+    const trasaccion = this.db.transaction(["videos"], "readwrite");
+    const coleccionObjetos = trasaccion.objectStore("videos");
+
+    datos.forEach((dato) => {
+      coleccionObjetos.add(dato);
+    });
   };
 
 }
